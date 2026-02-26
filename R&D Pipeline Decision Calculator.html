@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R&D Pipeline Decision Calculator</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --blue:#2563eb;--blue-dark:#1d4ed8;--blue-light:#eff6ff;
+    --green:#16a34a;--green-light:#f0fdf4;
+    --yellow:#d97706;--yellow-light:#fffbeb;
+    --red:#dc2626;--red-light:#fef2f2;
+    --gray:#6b7280;--gray-light:#f9fafb;
+    --border:#e5e7eb;--text:#111827;--text-soft:#4b5563;
+    --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  }
+  body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5;color:var(--text);background:#f1f5f9;padding:16px;min-height:100vh;}
+  .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden;}
+  .card-header{padding:14px 18px;font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:var(--gray-light);}
+  .card-header .icon{font-size:18px;}
+  .card-body{padding:16px 18px;}
+  .page-title{text-align:center;padding:18px;background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:var(--radius);color:#fff;margin-bottom:14px;box-shadow:0 4px 14px rgba(37,99,235,.35);}
+  .page-title h1{font-size:20px;font-weight:700;letter-spacing:-.3px;}
+  .page-title p{font-size:12px;opacity:.8;margin-top:4px;}
+  .gate-card .card-header{background:#eff6ff;color:var(--blue-dark);}
+  .option-list{display:flex;flex-direction:column;gap:6px;}
+  .option-label{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;transition:all .15s;background:#fff;}
+  .option-label:hover{border-color:var(--blue);background:var(--blue-light);}
+  .option-label input{margin-top:2px;accent-color:var(--blue);flex-shrink:0;}
+  .option-label.checked{border-color:var(--blue);background:var(--blue-light);}
+  .score-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .score-table th{background:var(--blue);color:#fff;padding:9px 10px;text-align:left;font-weight:600;font-size:12px;white-space:nowrap;}
+  .score-table th:nth-child(2),.score-table th:nth-child(4){text-align:center;}
+  .score-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .score-table tr:last-child td{border-bottom:none;}
+  .score-table tr:hover td{background:#fafafa;}
+  .crit-name{font-weight:600;color:var(--text);margin-bottom:4px;}
+  .crit-hints{color:var(--text-soft);font-size:11px;line-height:1.6;}
+  .crit-hints span{display:block;}
+  .weight-badge{display:inline-block;background:var(--blue-light);color:var(--blue-dark);border-radius:20px;padding:2px 8px;font-weight:700;font-size:12px;text-align:center;white-space:nowrap;}
+  .score-btns{display:flex;gap:4px;justify-content:center;}
+  .score-btn{width:32px;height:32px;border:1.5px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-soft);transition:all .15s;display:flex;align-items:center;justify-content:center;}
+  .score-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light);}
+  .score-btn.sel{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 2px 6px rgba(37,99,235,.4);}
+  .weighted-cell{text-align:center;font-weight:700;font-size:14px;color:var(--blue-dark);}
+  .score-total{margin-top:14px;padding:16px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-radius:var(--radius);border:1.5px solid #bae6fd;text-align:center;}
+  .score-total .label{font-size:12px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+  .score-total .number{font-size:36px;font-weight:800;color:var(--blue-dark);line-height:1;}
+  .score-total .denom{font-size:18px;font-weight:500;color:var(--text-soft);}
+  .progress-bar{height:8px;background:#e0f2fe;border-radius:99px;margin-top:10px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),#60a5fa);border-radius:99px;transition:width .4s ease;width:0%;}
+  .result-box{padding:16px 18px;border-radius:var(--radius);border-left:4px solid;font-size:14px;line-height:1.6;display:none;}
+  .result-box.show{display:block;}
+  .result-box.corporate{background:var(--green-light);border-color:var(--green);color:#14532d;}
+  .result-box.hold{background:var(--yellow-light);border-color:var(--yellow);color:#78350f;}
+  .result-box.local{background:var(--red-light);border-color:var(--red);color:#7f1d1d;}
+  .result-box.no{background:#f9fafb;border-color:var(--gray);color:#374151;}
+  .result-box .result-title{font-size:17px;font-weight:800;margin-bottom:6px;}
+  .result-box .result-reason{font-size:13px;opacity:.85;}
+  .tiebreaker{display:none;background:var(--yellow-light);border:1.5px solid #fde68a;border-radius:var(--radius);padding:16px 18px;}
+  .tiebreaker.show{display:block;}
+  .tiebreaker h3{font-size:14px;font-weight:700;color:#92400e;margin-bottom:10px;}
+  .tiebreaker ul{padding-left:18px;color:#78350f;font-size:13px;line-height:2;}
+  .btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+  .btn{padding:10px 22px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-primary:hover{background:var(--blue-dark);}
+  .btn-secondary{background:#fff;color:var(--text-soft);border:1.5px solid var(--border);}
+  .btn-secondary:hover{background:var(--gray-light);}
+  @media(max-width:600px){
+    .score-table,.score-table thead,.score-table tbody,.score-table tr,.score-table td{display:block;width:100%;}
+    .score-table thead{display:none;}
+    .score-table td{border-bottom:none;padding:6px 0;}
+    .score-table tr{border:1.5px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;}
+    .score-btns{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>🧪 R&D Pipeline Decision Calculator</h1>
+  <p>Corporate R&D eligibility scoring for compounding pharmacy pipeline decisions</p>
+</div>
+
+<!-- Gate 1 -->
+<div class="card gate-card">
+  <div class="card-header"><span class="icon">🚦</span> Gate 1: Who is asking?</div>
+  <div class="card-body">
+    <div class="option-list">
+      <label class="option-label" id="lbl-b2b">
+        <input type="radio" name="requester" value="b2b" id="req-b2b">
+        <span>B2B / Enterprise / Telemed / National group with plan</span>
+      </label>
+      <label class="option-label" id="lbl-single">
+        <input type="radio" name="requester" value="single" id="req-single">
+        <span>Single prescriber / DCR one-off</span>
+      </label>
+      <label class="option-label" id="lbl-exception">
+        <input type="radio" name="requester" value="exception" id="req-exception">
+        <span>Single prescriber — but expected to become a repeatable template</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Gate 2 -->
+<div class="card gate-card">
+  <div class="card-header"><span class="icon">🚦</span> Gate 2: Non-starters Check</div>
+  <div class="card-body">
+    <p style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">Check any that apply — these override the scorecard.</p>
+    <div class="option-list">
+      <label class="option-label" id="lbl-cf">
+        <input type="checkbox" id="compliance-red-flags">
+        <span>Known compliance red flags that can't be realistically mitigated</span>
+      </label>
+      <label class="option-label" id="lbl-nf">
+        <input type="checkbox" id="no-formulation-path">
+        <span>No plausible formulation path (even at concept level)</span>
+      </label>
+      <label class="option-label" id="lbl-ps">
+        <input type="checkbox" id="prescriber-specific">
+        <span>Truly prescriber-specific customization</span>
+      </label>
+      <label class="option-label" id="lbl-mv">
+        <input type="checkbox" id="minimal-volume">
+        <span>Forecast volume is minimal and not scalable</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Scorecard -->
+<div class="card">
+  <div class="card-header"><span class="icon">📊</span> Corporate R&D Eligibility Scorecard</div>
+  <div class="card-body">
+    <p style="font-size:12px;color:var(--text-soft);margin-bottom:12px;">Score each category 1–5. Weights are applied automatically.</p>
+    <div style="overflow-x:auto;">
+      <table class="score-table">
+        <thead>
+          <tr>
+            <th style="width:40%">Category</th>
+            <th style="width:10%">Weight</th>
+            <th style="width:35%">Score (1–5)</th>
+            <th style="width:15%">Weighted</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="crit-name">Demand Signal / Revenue Certainty</div><div class="crit-hints"><span>1 — "Someone asked" / no commitment</span><span>3 — Some interest, no firm plan</span><span>5 — Contracted B2B or committed volume + adoption plan</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">25%</span></td>
+            <td><div class="score-btns" data-row="0"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-0">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Scalability (Network Deployability)</div><div class="crit-hints"><span>1 — One-off/custom; hard to replicate</span><span>3 — Replicable with caveats</span><span>5 — Standardizable across multiple pharmacies with clear SOPs</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">15%</span></td>
+            <td><div class="score-btns" data-row="1"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-1">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Clinical Rationale + Differentiation</div><div class="crit-hints"><span>1 — Weak rationale / "me too"</span><span>3 — Plausible but not special</span><span>5 — Strong clinical need + clear differentiator</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">15%</span></td>
+            <td><div class="score-btns" data-row="2"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-2">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Regulatory / Quality Risk (reverse scored)</div><div class="crit-hints"><span>1 — High risk/complexity, big unknowns</span><span>3 — Moderate, manageable</span><span>5 — Low risk, clear path, minimal red flags</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">15%</span></td>
+            <td><div class="score-btns" data-row="3"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-3">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Operational Feasibility (R&D + Ops load)</div><div class="crit-hints"><span>1 — Major equipment/training burden</span><span>3 — Some changes required</span><span>5 — Fits existing capabilities; minimal disruption</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">10%</span></td>
+            <td><div class="score-btns" data-row="4"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-4">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Stability / Formulation Confidence</div><div class="crit-hints"><span>1 — Unclear, likely unstable</span><span>3 — Some data / moderate confidence</span><span>5 — Strong prior art/data; high confidence path</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">10%</span></td>
+            <td><div class="score-btns" data-row="5"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-5">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Margin / Unit Economics</div><div class="crit-hints"><span>1 — Poor margin / high COGS</span><span>3 — Acceptable</span><span>5 — Strong margin with scalable COGS</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">10%</span></td>
+            <td><div class="score-btns" data-row="6"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-6">—</td>
+          </tr>
+          <tr>
+            <td><div class="crit-name">Strategic Fit (2026 priorities)</div><div class="crit-hints"><span>1 — Off-strategy / distraction</span><span>3 — Some alignment</span><span>5 — Directly supports 2026 boulders/therapeutic focus</span></div></td>
+            <td style="text-align:center"><span class="weight-badge">10%</span></td>
+            <td><div class="score-btns" data-row="7"><button class="score-btn" data-score="1">1</button><button class="score-btn" data-score="2">2</button><button class="score-btn" data-score="3">3</button><button class="score-btn" data-score="4">4</button><button class="score-btn" data-score="5">5</button></div></td>
+            <td class="weighted-cell" id="weighted-7">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="score-total">
+      <div class="label">Total Score</div>
+      <div style="margin-top:4px;"><span class="number" id="score-num">0</span><span class="denom">/100</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="result-box" id="results"></div>
+
+<div class="tiebreaker" id="tiebreaker-section">
+  <h3>🤔 Tara-Style Tie-Breaker Questions</h3>
+  <ul>
+    <li>Who will buy it, and how many per month — in writing?</li>
+    <li>Can we roll it out to at least 3+ pharmacies without chaos?</li>
+    <li>Are we solving a real clinical problem or just being "interesting"?</li>
+    <li>Does this distract us from the 2026 boulders?</li>
+  </ul>
+</div>
+
+<div class="btn-row">
+  <button class="btn btn-primary" id="btn-reset">↺ Reset</button>
+  <button class="btn btn-secondary" id="btn-print">🖨 Print / Save</button>
+</div>
+
+<script>
+var weights = [25, 15, 15, 15, 10, 10, 10, 10];
+var scores = {};
+
+function calculateTotal() {
+  var total = 0;
+  for (var i = 0; i < weights.length; i++) {
+    if (scores[i]) total += (scores[i] / 5) * weights[i];
+  }
+  document.getElementById('score-num').textContent = total.toFixed(1);
+  document.getElementById('progress-fill').style.width = Math.min(total, 100) + '%';
+  evaluateDecision(total);
+}
+
+function evaluateDecision(score) {
+  var res = document.getElementById('results');
+  var tb = document.getElementById('tiebreaker-section');
+  var cf = document.getElementById('compliance-red-flags').checked;
+  var nf = document.getElementById('no-formulation-path').checked;
+  var ps = document.getElementById('prescriber-specific').checked;
+  var mv = document.getElementById('minimal-volume').checked;
+  var reqEl = document.querySelector('input[name="requester"]:checked');
+  var req = reqEl ? reqEl.value : null;
+
+  var title, reason, cls, tie = false;
+
+  if (cf || nf) {
+    title = '❌ DECISION: NO';
+    reason = 'Compliance red flags or no plausible formulation path identified. Do not proceed.';
+    cls = 'no';
+  } else if (ps || mv) {
+    title = '🏪 DECISION: Local Pharmacy Build';
+    reason = 'Prescriber-specific customization or minimal/non-scalable forecast volume.';
+    cls = 'local';
+  } else if (req === 'single') {
+    title = '🏪 DECISION: Local Pharmacy Build';
+    reason = 'Single prescriber request — default routing per Gate 1.';
+    cls = 'local';
+  } else if (req === 'b2b' || req === 'exception') {
+    if (score >= 75) {
+      title = '🚀 DECISION: Corporate R&D Pipeline';
+      reason = 'Score ' + score.toFixed(1) + '/100 — Advance to feasibility phase.';
+      cls = 'corporate';
+    } else if (score >= 60) {
+      title = '⏸️ DECISION: Hold / Needs More Info';
+      reason = 'Score ' + score.toFixed(1) + '/100 — Require demand proof + risk mitigation plan before proceeding.';
+      cls = 'hold'; tie = true;
+    } else {
+      title = '🏪 DECISION: Local Build or Decline';
+      reason = 'Score ' + score.toFixed(1) + '/100 — Below threshold. Consider local build if low-risk, otherwise decline.';
+      cls = 'local';
+    }
+  } else {
+    title = '⚠️ Select Gate 1 to get a decision';
+    reason = 'Choose who is asking above to unlock the recommendation.';
+    cls = 'hold';
+  }
+
+  res.className = 'result-box show ' + cls;
+  res.innerHTML = '<div class="result-title">' + title + '</div><div class="result-reason">' + reason + '</div>';
+  tb.className = 'tiebreaker' + (tie ? ' show' : '');
+}
+
+function resetCalculator() {
+  scores = {};
+  document.getElementById('score-num').textContent = '0';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('results').className = 'result-box';
+  document.getElementById('tiebreaker-section').className = 'tiebreaker';
+  var inputs = document.querySelectorAll('input[type=radio], input[type=checkbox]');
+  for (var i = 0; i < inputs.length; i++) inputs[i].checked = false;
+  var btns = document.querySelectorAll('.score-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('sel');
+  var cells = document.querySelectorAll('.weighted-cell');
+  for (var i = 0; i < cells.length; i++) cells[i].textContent = '—';
+  var labels = document.querySelectorAll('.option-label');
+  for (var i = 0; i < labels.length; i++) labels[i].classList.remove('checked');
+}
+
+// Attach score button listeners
+var scoreGroups = document.querySelectorAll('.score-btns');
+for (var g = 0; g < scoreGroups.length; g++) {
+  (function(group) {
+    var rowIdx = parseInt(group.getAttribute('data-row'));
+    var buttons = group.querySelectorAll('.score-btn');
+    for (var b = 0; b < buttons.length; b++) {
+      (function(btn) {
+        var scoreVal = parseInt(btn.getAttribute('data-score'));
+        btn.addEventListener('click', function() {
+          scores[rowIdx] = scoreVal;
+          // Update button highlights
+          for (var x = 0; x < buttons.length; x++) {
+            buttons[x].classList.remove('sel');
+          }
+          btn.classList.add('sel');
+          // Update weighted cell
+          var w = ((scoreVal / 5) * weights[rowIdx]).toFixed(1);
+          document.getElementById('weighted-' + rowIdx).textContent = w;
+          calculateTotal();
+        });
+      })(buttons[b]);
+    }
+  })(scoreGroups[g]);
+}
+
+// Attach gate listeners
+var gateInputs = document.querySelectorAll('input[name="requester"], input[type="checkbox"]');
+for (var i = 0; i < gateInputs.length; i++) {
+  gateInputs[i].addEventListener('change', function() {
+    var radios = ['b2b','single','exception'];
+    for (var r = 0; r < radios.length; r++) {
+      var el = document.getElementById('lbl-' + radios[r]);
+      if (el) el.classList.toggle('checked', el.querySelector('input').checked);
+    }
+    var checks = ['cf','nf','ps','mv'];
+    for (var c = 0; c < checks.length; c++) {
+      var el = document.getElementById('lbl-' + checks[c]);
+      if (el) el.classList.toggle('checked', el.querySelector('input').checked);
+    }
+    calculateTotal();
+  });
+}
+
+// Reset and print buttons
+document.getElementById('btn-reset').addEventListener('click', resetCalculator);
+document.getElementById('btn-print').addEventListener('click', function() { window.print(); });
+</script>
+</body>
+</html>
